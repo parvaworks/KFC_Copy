@@ -143,4 +143,28 @@ if group_cols:
             result_df.style.format({
                 'PR_DOR': '{:.2%}', 'Social_DOR': '{:.2%}',
                 'PR_TOR': '{:.2%}', 'Social_TOR': '{:.2%}',
-                'DOR_pvalue': '{:.4f}', 'TOR_pvalue'
+                'DOR_pvalue': '{:.4f}', 'TOR_pvalue': '{:.4f}',
+                'Margin_of_Victory (%)': '{:.2f}'
+            }),
+            use_container_width=True
+        )
+        csv = result_df.to_csv(index=False)
+        st.download_button("📥 Download Results CSV", csv, "variant_significance_results.csv")
+
+        # Plot significant differences
+        st.subheader("📊 Significant DOR Differences (PR - Social)")
+        sig_df = result_df[result_df['DOR_Significant'] == '✅']
+        if not sig_df.empty:
+            plt.figure(figsize=(10, 4))
+            xlabels = sig_df.apply(lambda r: f"{r['Platform']} {', '.join(str(r[c]) for c in group_cols)}", axis=1)
+            diffs = sig_df['PR_DOR'] - sig_df['Social_DOR']
+            plt.bar(xlabels, diffs)
+            plt.title("Significant PR - Social DOR Differences")
+            plt.ylabel("DOR Difference (Absolute)")
+            plt.xticks(rotation=45, ha='right')
+            plt.tight_layout()
+            st.pyplot(plt)
+        else:
+            st.info("No statistically significant DOR differences found.")
+    else:
+        st.warning("No valid PR vs Social comparisons available for the selected filters.")
