@@ -87,17 +87,32 @@ if uploaded_file:
                     dor_ttest = ttest_ind(pr[dor_col], social[dor_col], equal_var=False, nan_policy='omit')
                     tor_ttest = ttest_ind(pr[tor_col], social[tor_col], equal_var=False, nan_policy='omit')
 
+                    pr_dor = pr[dor_col].mean()
+                    social_dor = social[dor_col].mean()
+
+                    # --- Winner and Margin of Victory ---
+                    if pr_dor > social_dor:
+                        winner = 'PR'
+                    elif pr_dor < social_dor:
+                        winner = 'Social'
+                    else:
+                        winner = 'Tie'
+
+                    margin = ((pr_dor - social_dor) / social_dor) * 100 if social_dor != 0 else np.nan
+
                     results.append({
                         **{col: val for col, val in zip(group_cols, group_vals if isinstance(group_vals, tuple) else [group_vals])},
                         'Platform': platform,
-                        'PR_DOR': pr[dor_col].mean(),
-                        'Social_DOR': social[dor_col].mean(),
+                        'PR_DOR': pr_dor,
+                        'Social_DOR': social_dor,
                         'PR_TOR': pr[tor_col].mean(),
                         'Social_TOR': social[tor_col].mean(),
                         'DOR_pvalue': dor_ttest.pvalue,
                         'TOR_pvalue': tor_ttest.pvalue,
                         'DOR_Significant': '✅' if dor_ttest.pvalue < 0.05 else '❌',
-                        'TOR_Significant': '✅' if tor_ttest.pvalue < 0.05 else '❌'
+                        'TOR_Significant': '✅' if tor_ttest.pvalue < 0.05 else '❌',
+                        'Winner_Variant': winner,
+                        'Margin_of_Victory (%)': margin
                     })
 
         result_df = pd.DataFrame(results)
@@ -108,7 +123,8 @@ if uploaded_file:
                 result_df.style.format({
                     'PR_DOR': '{:.2%}', 'Social_DOR': '{:.2%}',
                     'PR_TOR': '{:.2%}', 'Social_TOR': '{:.2%}',
-                    'DOR_pvalue': '{:.4f}', 'TOR_pvalue': '{:.4f}'
+                    'DOR_pvalue': '{:.4f}', 'TOR_pvalue': '{:.4f}',
+                    'Margin_of_Victory (%)': '{:.2f}'
                 }),
                 use_container_width=True
             )
@@ -117,16 +133,18 @@ if uploaded_file:
             csv = result_df.to_csv(index=False)
             st.download_button("📥 Download Results CSV", csv, "variant_significance_results.csv")
 
-            # --- Optional Plot for Significant Differences ---
-            st.subheader("📊 Significant Differences Visualization")
+            # --- Plot Significant Differences ---
+            st.subheader("📊 Significant DOR Differences (PR - Social)")
             sig_df = result_df[result_df['DOR_Significant'] == '✅']
 
             if not sig_df.empty:
-                plt.figure(figsize=(8,4))
-                plt.bar(sig_df['Platform'] + " " + sig_df[group_cols[0]], 
-                        sig_df['PR_DOR'] - sig_df['Social_DOR'])
-                plt.title("PR - Social DOR Difference (Significant Only)")
-                plt.ylabel("Difference in Direct Open Rate")
+                plt.figure(figsize=(8, 4))
+                plt.bar(
+                    sig_df['Platform'] + " " + sig_df[group_cols[0]],
+                    sig_df['PR_DOR'] - sig_df['Social_DOR']
+                )
+                plt.title("Significant PR - Social DOR Differences")
+                plt.ylabel("DOR Difference (Absolute)")
                 plt.xticks(rotation=45)
                 st.pyplot(plt)
             else:
